@@ -1,0 +1,94 @@
+# Apple container troubleshooting
+
+Use these commands when Apple `container` fails to install, start, run, publish
+ports, or keep a container alive.
+
+## Command discovery
+
+```bash
+container --help
+container run --help
+container image --help
+container system --help
+container network --help
+container volume --help
+```
+
+Use `container image ls`, not `container images ls`.
+
+## Service and install checks
+
+```bash
+command -v container
+container --version
+container system status
+container system logs | tail -100
+brew info --formula container
+ls -la "$HOME/Library/Application Support/com.apple.container/"
+```
+
+Start or restart the service:
+
+```bash
+container system stop
+container system start
+container system status
+```
+
+## Container exited immediately
+
+```bash
+container ls --all
+container logs NAME
+container inspect NAME
+```
+
+Common causes:
+
+- The command finished successfully and the container exited.
+- The process printed an error and exited.
+- The image lacks the command or applet being invoked.
+- The service binds to `127.0.0.1` inside the container instead of `0.0.0.0`.
+
+## Port publishing fails
+
+Check the host port:
+
+```bash
+lsof -nP -iTCP:HOST_PORT -sTCP:LISTEN
+```
+
+Check container state and logs:
+
+```bash
+container ls
+container logs NAME
+container inspect NAME
+```
+
+Check listening ports inside the container:
+
+```bash
+container exec NAME sh -c 'netstat -lnt 2>/dev/null || ss -lnt 2>/dev/null || true'
+```
+
+Use local-only publishing unless LAN access is required:
+
+```bash
+container run --publish 127.0.0.1:HOST_PORT:CONTAINER_PORT IMAGE CMD
+```
+
+## Stale container name
+
+If a rerun fails because the name already exists:
+
+```bash
+container rm NAME >/dev/null 2>&1 || true
+```
+
+For a running container:
+
+```bash
+container stop NAME
+container rm NAME
+```
