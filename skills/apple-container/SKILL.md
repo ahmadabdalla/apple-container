@@ -55,6 +55,10 @@ team-standard Docker tooling.
   immediately. If a port probe fails, check logs and inspect.
 - Prefer manual `container system start` while evaluating. Use
   `brew services start container` only after the user wants it running at login.
+- `container stats` streams by default, so use `--no-stream`; CPU is cumulative usec, not a one-sample %, and memory is instantaneous.
+- Append `--format json` to `ls`, `inspect`, and `stats` (or `-q` to `ls`) when parseable output is needed.
+- Builds run in a builder VM; start it with `container builder start` and size builds with `container build --cpus` or `--memory`.
+- For amd64-only images, use `container build --arch` or `CONTAINER_DEFAULT_PLATFORM`.
 
 ## Fast checks
 
@@ -106,6 +110,7 @@ container system stop
 | Exec            | `container exec NAME CMD`                       |
 | Logs            | `container logs NAME`                           |
 | Inspect         | `container inspect NAME`                        |
+| Resource stats  | `container stats --no-stream NAME`              |
 | Stop            | `container stop NAME`                           |
 | Remove          | `container rm NAME`                             |
 | Remove stale    | See snippet below                               |
