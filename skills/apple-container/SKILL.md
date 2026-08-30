@@ -13,7 +13,7 @@ compatibility: >-
   pulling OCI images.
 metadata:
   author: ahmadabdalla
-  version: "0.2.0"
+  version: "0.2.3"
 ---
 
 # Apple `container` command guide
@@ -58,6 +58,9 @@ team-standard Docker tooling.
 - `container stats` streams by default, so use `--no-stream`; CPU is cumulative usec, not a one-sample %, and memory is instantaneous.
 - Append `--format json` to `ls`, `inspect`, and `stats` (or `-q` to `ls`) when parseable output is needed.
 - Builds run in a builder VM; start it with `container builder start` and size builds with `container build --cpus` or `--memory`.
+- `container builder status` can exit successfully while `STATE` is `stopped`; inspect the state instead of relying on the exit code.
+- Bind mounts are writable by default. For untrusted workloads, mount inputs and tools `readonly`, and expose only a dedicated output directory as writable.
+- For untrusted workloads, combine `--network none --no-dns --read-only --user UID:GID --cap-drop ALL` with CPU, memory, and `nofile` limits; add `--tmpfs /tmp` when the application needs temporary files.
 - For amd64-only images, use `container build --arch` or `CONTAINER_DEFAULT_PLATFORM`.
 
 ## Fast checks
@@ -176,6 +179,7 @@ container rm my-local-service
 | Full install, smoke, bind mount, and build checks                    | [references/smoke-tests.md](references/smoke-tests.md)         |
 | Long-running service, local port, or npm-backed service patterns     | [references/local-services.md](references/local-services.md)   |
 | Failures, logs, exited containers, port issues, or command discovery | [references/troubleshooting.md](references/troubleshooting.md) |
+| Untrusted inputs, offline execution, or hardened local runs           | [references/security-sensitive-runs.md](references/security-sensitive-runs.md) |
 
 ## Recommendation language
 
