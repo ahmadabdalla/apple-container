@@ -50,7 +50,7 @@ DNS-only fallback as offline.
 ## Account for current CLI gaps
 
 Check `container --version` and `container help run` because the project evolves
-quickly. In Apple `container` 1.2.0, the run interface exposes capability,
+quickly. In Apple `container` 1.3.1, the run interface exposes capability,
 non-root user, read-only filesystem, network, tmpfs, CPU, memory, and `ulimit`
 controls, but no documented `no-new-privileges`, seccomp, or process-count flag.
 
@@ -69,7 +69,8 @@ Use `container image ls --format json` or `container image inspect` to confirm
 that the intended local tag maps to the expected image, then run the local tag.
 Do not assume that a raw `sha256:...` argument means a local image ID.
 
-An open Apple issue documents that in version 1.1.0, raw `sha256:...` and some
+An Apple issue that remains open for the 1.3.1 audit documents that in version
+1.1.0, raw `sha256:...` and some
 locally built `name:tag@sha256:...` references can miss local lookup and fall
 back to Docker Hub. Container network flags apply to the guest workload, not
 the host-side image lookup that precedes it. On affected versions, verify the
@@ -89,9 +90,9 @@ local image identity separately and invoke its tag.
 
 ## Sources
 
-- [Apple technical overview](https://github.com/apple/container/blob/main/docs/technical-overview.md)
-- [Apple command reference](https://github.com/apple/container/blob/main/docs/command-reference.md)
-- [Apple mounts and volumes](https://github.com/apple/container/blob/main/docs/volumes.md)
+- [Apple 1.3.1 technical overview](https://github.com/apple/container/blob/1.3.1/docs/technical-overview.md)
+- [Apple 1.3.1 command reference](https://github.com/apple/container/blob/1.3.1/docs/command-reference.md)
+- [Apple 1.3.1 mounts and volumes](https://github.com/apple/container/blob/1.3.1/docs/volumes.md)
 - [Apple local digest lookup issue](https://github.com/apple/container/issues/1962)
 - [NIST SP 800-190, Application Container Security Guide](https://csrc.nist.gov/pubs/sp/800/190/final)
 - [Linux kernel `no_new_privs` documentation](https://www.kernel.org/doc/html/latest/userspace-api/no_new_privs.html)

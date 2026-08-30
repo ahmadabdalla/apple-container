@@ -10,11 +10,19 @@ container --help
 container run --help
 container image --help
 container system --help
+container builder --help
 container network --help
 container volume --help
+container registry --help
+container machine --help
 ```
 
 Use `container image ls`, not `container images ls`.
+
+An unknown subcommand can fall through to the plugin loader and report that
+plugins or services are unavailable. Check spelling and the relevant group help
+before restarting services. Trust the service hint only when
+`container system status` also reports the service down.
 
 ## Service and install checks
 
@@ -22,6 +30,7 @@ Use `container image ls`, not `container images ls`.
 command -v container
 container --version
 container system status
+container system version
 container system logs | tail -100
 brew info --formula container
 ls -la "$HOME/Library/Application Support/com.apple.container/"
@@ -34,6 +43,9 @@ container system stop
 container system start
 container system status
 ```
+
+Do not restart automatically for a read-only question when offline inspection
+is enough. If the task starts services temporarily, restore their prior state.
 
 ## Container exited immediately
 

@@ -1,10 +1,14 @@
 # apple-container
 
 An [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview)
-that turns Claude into a command-first guide for Apple's `container` CLI on
-Apple Silicon macOS: install and start the service, run OCI containers, publish
-ports, bind mount files, build images, troubleshoot failures, and decide when
-Apple `container` is enough versus Docker Desktop.
+that gives agents a command-first guide for Apple's `container` CLI on Apple
+Silicon macOS. It covers OCI workflows, services, builds, maintenance,
+container machines, the experimental Kubernetes plugin, troubleshooting, and
+the boundary with Docker tooling.
+
+The skill captures operational learnings, gotchas, and execution flows so an
+agent can use a proven fast path instead of repeatedly probing the environment
+or creating avoidable back-and-forth.
 
 ## Install
 
@@ -35,23 +39,31 @@ Is Apple container installed and running?
 Run an alpine container and print the kernel version
 Publish a local web service on 127.0.0.1:18080 and verify it
 My container exits right after start, help me debug it
+Show what is using Apple container disk space and safely prune it
+Create a persistent Linux development environment with container machine
+Set up an experimental local Kubernetes cluster
 Is Apple container enough for this, or do I need Docker Desktop?
 ```
 
 ## What it does
 
 - Checks install and service status; installs or starts the service.
-- Runs OCI containers, publishes local ports, bind mounts host files.
-- Builds small images with `container build`.
-- Troubleshoots command, service, image, network, and port issues.
-- Frames the Apple `container` versus Docker Desktop tradeoff.
+- Runs and builds OCI images with ports, mounts, networks, and volumes.
+- Audits storage and uses supported remove/prune flows without corrupting
+  snapshots or retained state.
+- Covers persistent Linux environments through `container machine`.
+- Covers the experimental `container k8s` local cluster plugin.
+- Troubleshoots command, service, image, builder, network, and port failures.
+- Hardens security-sensitive runs and restores prior service/builder state.
+- Frames the Apple `container` versus Docker tooling tradeoff.
 
-It does not present Apple `container` as a full Docker Desktop replacement for
-Compose, socket compatibility, Dev Containers, Testcontainers, or Kubernetes.
+It does not present Apple `container` as a full Docker replacement for Compose,
+Docker socket/API compatibility, Dev Containers, Testcontainers, mature
+Kubernetes integration, or team-standard Docker behavior.
 
 ## Requirements
 
-- Apple Silicon macOS, Apple `container` CLI 1.0 or later.
+- Apple Silicon macOS 26+; the current guidance targets Apple `container` 1.3.1.
 - Optional Homebrew for install; `curl` and `lsof` for checks.
 - Internet access for pulling OCI images.
 
@@ -61,13 +73,17 @@ Compose, socket compatibility, Dev Containers, Testcontainers, or Kubernetes.
 skills/apple-container
 ├── SKILL.md
 └── references
+    ├── current-features.md
     ├── local-services.md
+    ├── maintenance.md
+    ├── security-sensitive-runs.md
     ├── smoke-tests.md
     └── troubleshooting.md
 ```
 
-`SKILL.md` holds the core framework. Reference files load on demand, keeping
-token use low.
+`SKILL.md` keeps the core fast paths concise. Detailed execution flows load only
+when a task needs them, preserving low token use without losing accumulated
+operational knowledge.
 
 ## License
 

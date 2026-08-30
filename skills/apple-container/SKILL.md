@@ -1,69 +1,68 @@
 ---
 name: apple-container
 description: >-
-  Use this skill when working with Apple's container CLI on macOS: checking
-  installation, starting the service, running OCI containers, publishing local
-  ports, bind mounting files, building images, troubleshooting local container
-  failures, or deciding whether Apple container is enough versus Docker Desktop
-  for simple local workflows.
+  Use for Apple's container CLI on macOS: installation and service checks, OCI
+  containers and images, builds, ports, mounts, networks, volumes, container
+  machines, local Kubernetes, cleanup, troubleshooting, security-sensitive
+  runs, or deciding whether Apple container fits instead of Docker tooling.
 license: MIT
-compatibility: >-
-  Requires Apple Silicon macOS. Commands assume Apple container CLI 1.0+,
-  optional Homebrew for install, curl/lsof for checks, and internet access for
-  pulling OCI images.
 metadata:
   author: ahmadabdalla
-  version: "0.2.3"
+  version: "0.3.1"
 ---
 
-# Apple `container` command guide
+# Apple `container`
 
-Act as a command-first decision framework for Apple's `container` CLI. Keep
-answers short, prefer copyable commands, and load reference files only when the
-task needs more detail.
+Use a command-first approach. Keep answers short, prefer copyable commands, and
+load only the reference needed for the task. Run `container <group> --help`
+before relying on a Docker-shaped command or a version-sensitive option.
 
-## Use this skill for
+Treat the gotchas, fast paths, and routed reference flows as distilled
+operational learnings. Use the matching flow before exploratory probing so
+agents do not repeat discovery or create avoidable back-and-forth. Re-check
+local help or state only for version-sensitive details, genuine uncertainty, or
+observed behavior that conflicts with the documented flow.
 
-- Checking whether Apple `container` is installed and running.
-- Installing or starting the local container service.
-- Running simple OCI containers and local Linux sandboxes.
-- Publishing local service ports and bind mounting host files.
-- Building small images with `container build`.
-- Troubleshooting Apple `container` command, service, image, network, or port
-  publishing issues.
-- Comparing Apple `container` with Docker Desktop for simple local workflows.
+Target Apple container 1.3.1 on Apple Silicon macOS 26+. Command availability
+can vary by macOS version; optional Homebrew, curl, and `lsof` support checks.
 
-## Boundaries
+## Fit and boundaries
 
-Apple `container` is useful for basic OCI workflows. Do not present it as a full
-Docker Desktop replacement when the user needs Docker Compose, Docker socket
-compatibility, Dev Containers, Testcontainers, Kubernetes integration, or
-team-standard Docker tooling.
+Apple `container` is well suited to OCI images, isolated local services, builds,
+Linux sandboxes, and persistent Linux environments through `container machine`.
+Version 1.3.1 also includes an experimental single-node `container k8s` plugin.
 
-## Gotchas
+Keep Docker or the team's standard tooling when the workflow requires Compose,
+the Docker API/socket, Dev Containers, Testcontainers, mature Kubernetes
+integration, or exact Docker-compatible behavior. Do not describe the
+experimental Kubernetes plugin as equivalent to a production-grade stack.
 
-- Use `container image ls`, not `container images ls`.
-- Start the service with `container system start` before `run`, `build`, or
-  `push`.
-- First run may fetch the kernel and init image before the container starts.
-- Use `127.0.0.1:HOST_PORT:CONTAINER_PORT` for local-only services.
-- For local services, bind the app inside the container to `0.0.0.0`, then
-  publish on macOS as `127.0.0.1:HOST_PORT:CONTAINER_PORT`.
-- A listening host port proves forwarding exists, not that the application path
-  or protocol is valid.
-- A detached container can appear to start successfully and then exit
-  immediately. If a port probe fails, check logs and inspect.
-- Prefer manual `container system start` while evaluating. Use
-  `brew services start container` only after the user wants it running at login.
-- `container stats` streams by default, so use `--no-stream`; CPU is cumulative usec, not a one-sample %, and memory is instantaneous.
-- Append `--format json` to `ls`, `inspect`, and `stats` (or `-q` to `ls`) when parseable output is needed.
-- Builds run in a builder VM; start it with `container builder start` and size builds with `container build --cpus` or `--memory`.
-- `container builder status` can exit successfully while `STATE` is `stopped`; inspect the state instead of relying on the exit code.
-- Bind mounts are writable by default. For untrusted workloads, mount inputs and tools `readonly`, and expose only a dedicated output directory as writable.
-- For untrusted workloads, combine `--network none --no-dns --read-only --user UID:GID --cap-drop ALL` with CPU, memory, and `nofile` limits; add `--tmpfs /tmp` when the application needs temporary files.
-- For amd64-only images, use `container build --arch` or `CONTAINER_DEFAULT_PLATFORM`.
+## Operating rules
 
-## Fast checks
+- Command groups are singular: `container image ls`, not `container images ls`.
+- Check `container system status`; start services only when the requested command
+  requires them. Restore the original service and builder state after temporary
+  diagnostics or security-sensitive work.
+- A misspelled command can fall through to the plugin loader and misleadingly
+  report that services are unavailable. Confirm the command with `--help` before
+  restarting anything.
+- Use `container ls --all`; detached containers can start and exit immediately.
+- Use `--format json` for parseable `ls`, `stats`, and `system df` output;
+  `inspect` commands already emit JSON. `container stats` streams unless
+  `--no-stream` is supplied.
+- Builds use a builder VM. Check the reported state from `container builder
+  status`; a zero exit code does not mean the state is running.
+- For local-only ports, publish `127.0.0.1:HOST:CONTAINER` and bind the service
+  inside the container to `0.0.0.0`.
+- Bind mounts are writable by default. Use `readonly` for inputs and expose only
+  dedicated writable output paths for untrusted workloads.
+- Use CLI remove/prune commands for cleanup. Never delete files directly below
+  `~/Library/Application Support/com.apple.container`; snapshots back retained
+  images and containers.
+- For non-native images, use `--platform`/`--arch`, `--rosetta` where supported,
+  or `CONTAINER_DEFAULT_PLATFORM` deliberately.
+
+## Fast path
 
 ```bash
 uname -m
@@ -73,15 +72,7 @@ container --version
 container system status
 ```
 
-Expected basics:
-
-```text
-arm64
-container CLI version ...
-status running
-```
-
-Install with Homebrew if missing:
+Install or start when needed:
 
 ```bash
 brew info --formula container
@@ -89,112 +80,42 @@ brew install container
 container system start
 ```
 
-Start, status, and stop:
+Core commands:
 
-```bash
-container system start
-container system status
-container system stop
-```
+| Goal | Command |
+| --- | --- |
+| Run and remove | `container run --rm IMAGE CMD` |
+| Run detached | `container run -d --name NAME IMAGE CMD` |
+| Local port | `container run -p 127.0.0.1:18080:8000 IMAGE CMD` |
+| Read-only bind | `container run -v "$PWD:/work:ro" IMAGE CMD` |
+| Build | `container build -t NAME .` |
+| Containers | `container ls --all` |
+| Images | `container image ls` |
+| Inspect/log/exec | `container inspect NAME`; `container logs NAME`; `container exec NAME CMD` |
+| Networks/volumes | `container network ls`; `container volume ls` |
+| Disk usage | `container system df` |
+| Persistent Linux | `container machine create IMAGE --name NAME` |
+| Help | `container <command-or-group> --help` |
 
-## Command map
+For basic localhost service experiments and simple OCI workflows, Apple
+`container` may be enough. Prefer manual `container system start` while
+evaluating; use `brew services start container` only when the user explicitly
+wants it running at login.
 
-| Goal            | Command                                         |
-| --------------- | ----------------------------------------------- |
-| Run and remove  | `container run --rm IMAGE CMD`                  |
-| Run detached    | `container run --detach --name NAME IMAGE CMD`  |
-| Publish port    | `container run --publish 18080:8000 IMAGE CMD`  |
-| Local-only port | `container run --publish 127.0.0.1:18080:8000`  |
-| Bind mount      | `container run --volume "$PWD:/work" IMAGE CMD` |
-| Build image     | `container build -t NAME .`                     |
-| List containers | `container ls`                                  |
-| List all        | `container ls --all`                            |
-| List images     | `container image ls`                            |
-| Exec            | `container exec NAME CMD`                       |
-| Logs            | `container logs NAME`                           |
-| Inspect         | `container inspect NAME`                        |
-| Resource stats  | `container stats --no-stream NAME`              |
-| Stop            | `container stop NAME`                           |
-| Remove          | `container rm NAME`                             |
-| Remove stale    | See snippet below                               |
-| Copy files      | `container cp SRC DEST`                         |
-| List networks   | `container network ls`                          |
-| List volumes    | `container volume ls`                           |
-| System status   | `container system status`                       |
-| System logs     | `container system logs`                         |
+## Load references only when needed
 
-Stale remove snippet:
+| Need | Reference |
+| --- | --- |
+| Install, smoke, bind mount, or build verification | [references/smoke-tests.md](references/smoke-tests.md) |
+| Long-running localhost or npm-backed services | [references/local-services.md](references/local-services.md) |
+| Failures, command discovery, exits, or port issues | [references/troubleshooting.md](references/troubleshooting.md) |
+| Inventory, image removal, pruning, snapshots, or disk recovery | [references/maintenance.md](references/maintenance.md) |
+| Machines, Kubernetes, registries, or newer run/build features | [references/current-features.md](references/current-features.md) |
+| Untrusted inputs, offline execution, or hardening | [references/security-sensitive-runs.md](references/security-sensitive-runs.md) |
 
-```bash
-container rm NAME >/dev/null 2>&1 || true
-```
+## Authoritative sources
 
-## Default workflows
-
-Run a tiny Linux container:
-
-```bash
-container run --rm docker.io/library/alpine:latest \
-  sh -c 'echo arch=$(uname -m); echo kernel=$(uname -r); sed -n "1,3p" /etc/os-release'
-```
-
-Bind mount the current directory:
-
-```bash
-container run --rm \
-  --volume "$PWD:/work" \
-  docker.io/library/alpine:latest \
-  sh -c 'pwd; ls -la /work | sed -n "1,20p"'
-```
-
-Run a local HTTP service:
-
-```bash
-container run --detach \
-  --name my-local-service \
-  --publish 127.0.0.1:18080:8000 \
-  IMAGE \
-  COMMAND
-```
-
-Verify a local service:
-
-```bash
-lsof -nP -iTCP:18080 -sTCP:LISTEN
-curl -fsS http://127.0.0.1:18080/
-container logs my-local-service
-```
-
-Clean up:
-
-```bash
-container stop my-local-service
-container rm my-local-service
-```
-
-## Load references when needed
-
-| Need                                                                 | Load                                                           |
-| -------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Full install, smoke, bind mount, and build checks                    | [references/smoke-tests.md](references/smoke-tests.md)         |
-| Long-running service, local port, or npm-backed service patterns     | [references/local-services.md](references/local-services.md)   |
-| Failures, logs, exited containers, port issues, or command discovery | [references/troubleshooting.md](references/troubleshooting.md) |
-| Untrusted inputs, offline execution, or hardened local runs           | [references/security-sensitive-runs.md](references/security-sensitive-runs.md) |
-
-## Recommendation language
-
-For localhost service experiments, simple local sandboxes, and basic OCI
-workflows, Apple `container` may be enough.
-
-Keep Docker available when the workflow depends on Docker Compose, Docker
-API/socket compatibility, Dev Containers, Testcontainers, Kubernetes
-integration, or team-standard Docker tooling.
-
-## References
-
-| Topic                            | Reference                                        |
-| -------------------------------- | ------------------------------------------------ |
-| Apple `container` CLI            | https://github.com/apple/container               |
-| Apple Containerization framework | https://github.com/apple/containerization        |
-| Apple `container` API docs       | https://apple.github.io/container/documentation/ |
-| Homebrew formula                 | https://formulae.brew.sh/formula/container       |
+- [Apple container 1.3.1 command reference](https://github.com/apple/container/blob/1.3.1/docs/command-reference.md)
+- [Apple container releases](https://github.com/apple/container/releases)
+- [Apple Containerization framework](https://github.com/apple/containerization)
+- [Homebrew formula](https://formulae.brew.sh/formula/container)
