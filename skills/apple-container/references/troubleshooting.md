@@ -31,7 +31,7 @@ command -v container
 container --version
 container system status
 container system version
-container system logs | tail -100
+container system logs | tail -n 100
 brew info --formula container
 ls -la "$HOME/Library/Application Support/com.apple.container/"
 ```
@@ -81,7 +81,16 @@ container inspect NAME
 Check listening ports inside the container:
 
 ```bash
-container exec NAME sh -c 'netstat -lnt 2>/dev/null || ss -lnt 2>/dev/null || true'
+container exec NAME sh -eu -c '
+  if command -v netstat >/dev/null; then
+    exec netstat -lnt
+  fi
+  if command -v ss >/dev/null; then
+    exec ss -lnt
+  fi
+  echo "neither netstat nor ss is installed" >&2
+  exit 1
+'
 ```
 
 Use local-only publishing unless LAN access is required:
@@ -95,7 +104,7 @@ container run --publish 127.0.0.1:HOST_PORT:CONTAINER_PORT IMAGE CMD
 If a rerun fails because the name already exists:
 
 ```bash
-container rm NAME >/dev/null 2>&1 || true
+container rm NAME
 ```
 
 For a running container:

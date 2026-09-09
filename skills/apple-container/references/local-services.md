@@ -8,15 +8,17 @@ Apple `container`.
 Use `127.0.0.1:HOST_PORT:CONTAINER_PORT` to expose the service only to the Mac.
 
 ```bash
-NAME=my-local-service
-HOST_PORT=18080
-CONTAINER_PORT=8000
+service_name=my-local-service
+host_port=18080
+container_port=8000
 
-container rm "$NAME" >/dev/null 2>&1 || true
+if container inspect "$service_name" >/dev/null 2>&1; then
+  container rm "$service_name"
+fi
 
 container run --detach \
-  --name "$NAME" \
-  --publish 127.0.0.1:${HOST_PORT}:${CONTAINER_PORT} \
+  --name "$service_name" \
+  --publish "127.0.0.1:${host_port}:${container_port}" \
   --env KEY=value \
   --volume "$PWD:/workspace:ro" \
   IMAGE \
@@ -29,16 +31,19 @@ Verify:
 
 ```bash
 container ls
-lsof -nP -iTCP:${HOST_PORT} -sTCP:LISTEN
-curl -fsS http://127.0.0.1:${HOST_PORT}/
-container logs "$NAME"
+lsof -nP -iTCP:"$host_port" -sTCP:LISTEN
+curl -fsS \
+  --retry 5 --retry-all-errors --retry-delay 1 \
+  --max-time 2 \
+  "http://127.0.0.1:${host_port}/"
+container logs "$service_name"
 ```
 
 Clean up:
 
 ```bash
-container stop "$NAME"
-container rm "$NAME"
+container stop "$service_name"
+container rm "$service_name"
 ```
 
 ## Python HTTP service test
@@ -48,9 +53,16 @@ container run --detach \
   --name apple-container-web-test \
   --publish 127.0.0.1:18080:8000 \
   docker.io/library/python:3.12-alpine \
-  sh -c 'mkdir -p /www && echo apple-container-ok > /www/index.html && cd /www && exec python -m http.server 8000 --bind 0.0.0.0'
+  sh -eu -c '
+    mkdir -p /www
+    printf "%s\n" apple-container-ok > /www/index.html
+    exec python -m http.server 8000 --bind 0.0.0.0 --directory /www
+  '
 
-curl -fsS http://127.0.0.1:18080/
+curl -fsS \
+  --retry 5 --retry-all-errors --retry-delay 1 \
+  --max-time 2 \
+  http://127.0.0.1:18080/
 
 container stop apple-container-web-test
 container rm apple-container-web-test
@@ -72,7 +84,7 @@ container run --detach \
   --name node-service-test \
   --publish 127.0.0.1:3001:3001 \
   docker.io/library/node:22-alpine \
-  sh -c 'exec npx -y PACKAGE_NAME ARGS'
+  sh -eu -c 'exec npx -y PACKAGE_NAME ARGS'
 ```
 
 For durable use, prefer a `Dockerfile` or `Containerfile` that installs the npm

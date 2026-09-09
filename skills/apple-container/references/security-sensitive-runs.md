@@ -21,6 +21,8 @@ remain trust boundaries.
 - Copy each input into a private, run-specific staging directory. Mount only
   the exact input and required tools as read-only; never expose broad paths such
   as the workspace root, the user's home directory, credentials, or sockets.
+  A read-only credential mount prevents modification, not reading or
+  exfiltration.
 - Expose one dedicated, run-specific output directory as writable. Run as a
   non-root UID/GID and probe that exact output path before the real workload.
   VirtioFS ownership translation can vary, so do not assume every arbitrary UID
@@ -46,6 +48,59 @@ Adjust limits and add back only capabilities the application demonstrably
 needs. `--no-dns` alone is not network isolation because raw IP traffic remains
 possible. On macOS 15, `--network none` is unavailable; do not describe a
 DNS-only fallback as offline.
+
+Verify the network boundary with a prepared Alpine 3.24 image. Every negative
+probe must fail; any unexpected success makes the check fail.
+
+```bash
+container run --rm --network none --no-dns \
+  docker.io/library/alpine:3.24 sh -eu -c '
+assert_probe_fails() {
+  probe_name=$1
+  shift
+  if "$@" >/dev/null 2>&1; then
+    echo "FAIL: $probe_name unexpectedly succeeded" >&2
+    exit 1
+  fi
+  echo "PASS: $probe_name failed as expected"
+}
+
+for required_command in ip nslookup wget; do
+  if ! command -v "$required_command" >/dev/null; then
+    echo "FAIL: required command not found: $required_command" >&2
+    exit 1
+  fi
+done
+
+interface_names=$(ls /sys/class/net)
+if [ "$interface_names" != lo ]; then
+  echo "FAIL: expected only loopback; found: $interface_names" >&2
+  exit 1
+fi
+echo "PASS: loopback is the only interface"
+
+ipv4_default_route=$(ip -4 route show default)
+ipv6_default_route=$(ip -6 route show default)
+if [ -n "$ipv4_default_route$ipv6_default_route" ]; then
+  echo "FAIL: found an IPv4 or IPv6 default route" >&2
+  exit 1
+fi
+echo "PASS: no IPv4 or IPv6 default route"
+
+assert_probe_fails "DNS lookup" nslookup example.com
+assert_probe_fails "hostname access" wget -q -T 2 -O /dev/null http://example.com
+assert_probe_fails "public IPv4 route" ip -4 route get 1.1.1.1
+assert_probe_fails "public IPv6 route" ip -6 route get 2606:4700:4700::1111
+
+for address in 10.0.0.1 172.16.0.1 192.168.0.1 169.254.169.254; do
+  assert_probe_fails "$address route" ip -4 route get "$address"
+done
+
+echo "PASS: offline containment verified"
+'
+```
+
+`ip route get` avoids treating a closed remote port as proof of containment.
 
 ## Account for current CLI gaps
 

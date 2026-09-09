@@ -27,7 +27,11 @@ status running
 
 ```bash
 container run --rm docker.io/library/alpine:latest \
-  sh -c 'echo arch=$(uname -m); echo kernel=$(uname -r); sed -n "1,3p" /etc/os-release'
+  sh -eu -c '
+    printf "arch=%s\n" "$(uname -m)"
+    printf "kernel=%s\n" "$(uname -r)"
+    sed -n "1,3p" /etc/os-release
+  '
 ```
 
 Expected architecture on Apple Silicon:
@@ -53,7 +57,10 @@ Important: use `container image ls`, not `container images ls`.
 container run --rm \
   --volume "$PWD:/work" \
   docker.io/library/alpine:latest \
-  sh -c 'pwd; ls -la /work | sed -n "1,20p"'
+  sh -eu -c '
+    pwd
+    ls -la /work | sed -n "1,20p"
+  '
 ```
 
 Expected result: files from the current host directory appear under `/work`.
@@ -61,15 +68,14 @@ Expected result: files from the current host directory appear under `/work`.
 ## Build check
 
 ```bash
-mkdir -p /tmp/apple-container-build-test
-cd /tmp/apple-container-build-test
+build_context=$(mktemp -d)
 
-cat > Dockerfile <<'EOF'
+cat > "$build_context/Dockerfile" <<'EOF'
 FROM alpine:latest
 CMD echo -n "Architecture is " && uname -m
 EOF
 
-container build -t uname-test .
+container build -t uname-test "$build_context"
 container run --rm uname-test
 ```
 
@@ -82,5 +88,6 @@ Architecture is aarch64
 Clean up the temporary directory when finished:
 
 ```bash
-rm -rf /tmp/apple-container-build-test
+rm "$build_context/Dockerfile"
+rmdir "$build_context"
 ```
