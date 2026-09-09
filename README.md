@@ -63,7 +63,7 @@ Kubernetes integration, or team-standard Docker behavior.
 
 ## Requirements
 
-- Apple Silicon macOS 26+; the current guidance targets Apple `container` 1.3.1.
+- Apple Silicon macOS 26+; install the latest stable Apple `container` release.
 - Optional Homebrew for install; `curl` and `lsof` for checks.
 - Internet access for pulling OCI images.
 
@@ -72,6 +72,9 @@ Kubernetes integration, or team-standard Docker behavior.
 ```text
 skills/apple-container
 ├── SKILL.md
+├── scripts
+│   ├── verify-offline.sh
+│   └── verify-offline-guest.sh
 └── references
     ├── current-features.md
     ├── local-services.md

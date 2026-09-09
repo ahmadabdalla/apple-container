@@ -1,8 +1,8 @@
 # Current feature surface
 
-Load this reference for Apple container 1.3.x features beyond ordinary
-run/build/list workflows. Check `container --version` and local `--help` because
-the project changes quickly and some commands depend on the macOS version.
+Load this reference for Apple container features beyond ordinary run/build/list
+workflows. Check `container --version` and local `--help` because the project
+changes quickly and some commands depend on the macOS version.
 
 ## Command groups
 
@@ -42,9 +42,9 @@ guest kernel built with KVM support; validate it with local help and Apple's
 
 ## Experimental Kubernetes plugin
 
-Apple container 1.3.1 bundles an experimental plugin for local single-node
-clusters. Verify that services are running and that `container k8s --help` is
-available before using it.
+Current releases include an experimental plugin for local single-node clusters.
+Verify that services are running and that `container k8s --help` is available
+before using it.
 
 ```bash
 container k8s create --name dev

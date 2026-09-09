@@ -7,8 +7,10 @@ remain trust boundaries.
 
 ## Separate preparation from execution
 
-- Fetch packages and build a minimal, reviewed image during an intentional
-  network-enabled preparation phase. Keep ordinary untrusted runs offline.
+- Fetch packages, check releases, and build a minimal, reviewed image during an
+  intentional network-enabled preparation phase. Keep readiness checks local
+  and limited to flags that path uses, so a validated offline run does not
+  depend on GitHub or a registry.
 - Keep tools and dependencies inside the image instead of installing them on
   macOS. Record the image tag plus its observed ID or digest and retain a package
   inventory when reproducibility or auditability matters.
@@ -49,63 +51,35 @@ needs. `--no-dns` alone is not network isolation because raw IP traffic remains
 possible. On macOS 15, `--network none` is unavailable; do not describe a
 DNS-only fallback as offline.
 
-Verify the network boundary with a prepared Alpine 3.24 image. Every negative
-probe must fail; any unexpected success makes the check fail.
+Verify the exact network boundary with the bundled
+[`verify-offline.sh`](../scripts/verify-offline.sh) and a prepared local image
+with `sh`; the probe reports any other missing tools:
 
 ```bash
-container run --rm --network none --no-dns \
-  docker.io/library/alpine:3.24 sh -eu -c '
-assert_probe_fails() {
-  probe_name=$1
-  shift
-  if "$@" >/dev/null 2>&1; then
-    echo "FAIL: $probe_name unexpectedly succeeded" >&2
-    exit 1
-  fi
-  echo "PASS: $probe_name failed as expected"
-}
-
-for required_command in ip nslookup wget; do
-  if ! command -v "$required_command" >/dev/null; then
-    echo "FAIL: required command not found: $required_command" >&2
-    exit 1
-  fi
-done
-
-interface_names=$(ls /sys/class/net)
-if [ "$interface_names" != lo ]; then
-  echo "FAIL: expected only loopback; found: $interface_names" >&2
-  exit 1
-fi
-echo "PASS: loopback is the only interface"
-
-ipv4_default_route=$(ip -4 route show default)
-ipv6_default_route=$(ip -6 route show default)
-if [ -n "$ipv4_default_route$ipv6_default_route" ]; then
-  echo "FAIL: found an IPv4 or IPv6 default route" >&2
-  exit 1
-fi
-echo "PASS: no IPv4 or IPv6 default route"
-
-assert_probe_fails "DNS lookup" nslookup example.com
-assert_probe_fails "hostname access" wget -q -T 2 -O /dev/null http://example.com
-assert_probe_fails "public IPv4 route" ip -4 route get 1.1.1.1
-assert_probe_fails "public IPv6 route" ip -6 route get 2606:4700:4700::1111
-
-for address in 10.0.0.1 172.16.0.1 192.168.0.1 169.254.169.254; do
-  assert_probe_fails "$address route" ip -4 route get "$address"
-done
-
-echo "PASS: offline containment verified"
-'
+scripts/verify-offline.sh LOCAL_IMAGE_TAG
 ```
 
-`ip route get` avoids treating a closed remote port as proof of containment.
+The script refuses a missing local tag, then checks interfaces, IPv4 and IPv6
+routes, DNS, hostname access, private ranges, and the metadata address. Every
+negative probe must fail. Its route checks avoid treating a closed remote port
+as proof of containment.
+
+## Enforce constrained egress
+
+- Treat `--internal` and proxy environment variables as configuration, not
+  security boundaries. Host-only behavior has varied with the release, macOS,
+  and host forwarding state; a workload can unset or bypass proxy variables.
+- Probe after launch from the workload guest. Check raw IPv4, IPv6, DNS,
+  RFC1918, metadata, the actual container gateway, and the intended proxy path
+  independently instead of inferring isolation from a failed hostname lookup.
+- A proxy can join separate networks with repeated `--network` flags, but the
+  workload still needs an enforced path that reaches only that proxy. Confirm
+  this version-sensitive behavior with local help and post-launch probes.
 
 ## Account for current CLI gaps
 
-Check `container --version` and `container help run` because the project evolves
-quickly. In Apple `container` 1.3.1, the run interface exposes capability,
+Check `container --version` and `container run --help` because the project
+evolves quickly. In the last-verified CLI, the run interface exposes capability,
 non-root user, read-only filesystem, network, tmpfs, CPU, memory, and `ulimit`
 controls, but no documented `no-new-privileges`, seccomp, or process-count flag.
 
@@ -115,6 +89,9 @@ When `no-new-privileges` remains unavailable:
 - For images you control, remove unneeded SUID/SGID executables during the image
   build. This reduces one escalation path but is not equivalent to the kernel's
   `no_new_privs` control.
+- A reviewed initializer can apply guest policy and, when available, use
+  `setpriv --no-new-privs --bounding-set=-all` before starting untrusted code.
+  Verify `NoNewPrivs` and the capability sets inside the guest.
 - Treat arbitrary third-party images as higher risk and avoid granting them
   writable host mounts unless the workflow truly needs one.
 
@@ -124,8 +101,7 @@ Use `container image ls --format json` or `container image inspect` to confirm
 that the intended local tag maps to the expected image, then run the local tag.
 Do not assume that a raw `sha256:...` argument means a local image ID.
 
-An Apple issue that remains open for the 1.3.1 audit documents that in version
-1.1.0, raw `sha256:...` and some
+An open Apple issue documents that in version 1.1.0, raw `sha256:...` and some
 locally built `name:tag@sha256:...` references can miss local lookup and fall
 back to Docker Hub. Container network flags apply to the guest workload, not
 the host-side image lookup that precedes it. On affected versions, verify the
@@ -136,8 +112,14 @@ local image identity separately and invoke its tag.
 - Write into a temporary run directory, destroy the container, and independently
   validate output structure, file types, sizes, and content on the host. Promote
   only approved files into the final destination.
-- Resolve and check cleanup targets before deletion. Avoid broad globs or paths
-  derived from unchecked workload output.
+- Track exact resources created by the run. Test cleanup after a non-zero
+  workload and after partial setup, preserve the workload status, and avoid
+  broad globs or paths derived from unchecked output.
+- Normalize generated network names before creation. Use no more than 63
+  lowercase alphanumeric characters, with `.`, `_`, or `-` only in interior
+  positions; random `mktemp` suffixes can contain rejected uppercase letters.
+- Run compatibility tests inside the intended Linux guest when macOS shells or
+  utilities differ from the environment that executes the workload.
 - Record whether the system service and builder were running before the task.
   Start only what is needed and stop only components the task started. Parse the
   builder's reported state; a successful status-command exit is not proof that
@@ -149,6 +131,8 @@ local image identity separately and invoke its tag.
 - [Apple 1.3.1 command reference](https://github.com/apple/container/blob/1.3.1/docs/command-reference.md)
 - [Apple 1.3.1 mounts and volumes](https://github.com/apple/container/blob/1.3.1/docs/volumes.md)
 - [Apple local digest lookup issue](https://github.com/apple/container/issues/1962)
+- [Apple host-only egress issue](https://github.com/apple/container/issues/2062)
+- [Proposed host-only gateway fix](https://github.com/apple/container/pull/2072)
 - [NIST SP 800-190, Application Container Security Guide](https://csrc.nist.gov/pubs/sp/800/190/final)
 - [Linux kernel `no_new_privs` documentation](https://www.kernel.org/doc/html/latest/userspace-api/no_new_privs.html)
 - [OWASP Docker Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)

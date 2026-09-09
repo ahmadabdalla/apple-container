@@ -8,7 +8,7 @@ description: >-
 license: MIT
 metadata:
   author: ahmadabdalla
-  version: "0.3.1"
+  version: "0.3.2"
 ---
 
 # Apple `container`
@@ -23,14 +23,16 @@ agents do not repeat discovery or create avoidable back-and-forth. Re-check
 local help or state only for version-sensitive details, genuine uncertainty, or
 observed behavior that conflicts with the documented flow.
 
-Target Apple container 1.3.1 on Apple Silicon macOS 26+. Command availability
-can vary by macOS version; optional Homebrew, curl, and `lsof` support checks.
+Use the installed CLI for ordinary and offline work; target the latest stable
+when installing or upgrading. Examples were last verified on Apple container
+1.3.1, Apple Silicon macOS 26+. Commands vary by release and macOS version.
 
 ## Fit and boundaries
 
 Apple `container` is well suited to OCI images, isolated local services, builds,
 Linux sandboxes, and persistent Linux environments through `container machine`.
-Version 1.3.1 also includes an experimental single-node `container k8s` plugin.
+Current releases also include an experimental single-node `container k8s`
+plugin.
 
 Keep Docker or the team's standard tooling when the workflow requires Compose,
 the Docker API/socket, Dev Containers, Testcontainers, mature Kubernetes
@@ -111,11 +113,11 @@ wants it running at login.
 | Failures, command discovery, exits, or port issues | [references/troubleshooting.md](references/troubleshooting.md) |
 | Inventory, image removal, pruning, snapshots, or disk recovery | [references/maintenance.md](references/maintenance.md) |
 | Machines, Kubernetes, registries, or newer run/build features | [references/current-features.md](references/current-features.md) |
-| Untrusted inputs, offline execution, or hardening | [references/security-sensitive-runs.md](references/security-sensitive-runs.md) |
+| Untrusted inputs, offline or constrained egress, or hardening | [references/security-sensitive-runs.md](references/security-sensitive-runs.md) |
 
 ## Authoritative sources
 
-- [Apple container 1.3.1 command reference](https://github.com/apple/container/blob/1.3.1/docs/command-reference.md)
+- [Last-verified command reference (1.3.1)](https://github.com/apple/container/blob/1.3.1/docs/command-reference.md)
 - [Apple container releases](https://github.com/apple/container/releases)
 - [Apple Containerization framework](https://github.com/apple/containerization)
 - [Homebrew formula](https://formulae.brew.sh/formula/container)
