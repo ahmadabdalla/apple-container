@@ -8,7 +8,7 @@ description: >-
 license: MIT
 metadata:
   author: ahmadabdalla
-  version: "0.3.2"
+  version: "0.3.3"
 ---
 
 # Apple `container`
@@ -56,8 +56,10 @@ experimental Kubernetes plugin as equivalent to a production-grade stack.
   status`; a zero exit code does not mean the state is running.
 - For local-only ports, publish `127.0.0.1:HOST:CONTAINER` and bind the service
   inside the container to `0.0.0.0`.
-- Bind mounts are writable by default. Use `readonly` for inputs and expose only
-  dedicated writable output paths for untrusted workloads.
+- Bind mounts accept host directories, not regular-file sources, in confirmed
+  releases 1.3.1 and 1.4.1. They are writable by default; stage individual
+  inputs in a private directory, mount it `readonly`, and expose only dedicated
+  writable output paths for untrusted workloads.
 - Use CLI remove/prune commands for cleanup. Never delete files directly below
   `~/Library/Application Support/com.apple.container`; snapshots back retained
   images and containers.

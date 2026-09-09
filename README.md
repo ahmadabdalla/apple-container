@@ -74,7 +74,8 @@ skills/apple-container
 ├── SKILL.md
 ├── scripts
 │   ├── verify-offline.sh
-│   └── verify-offline-guest.sh
+│   ├── verify-offline-guest.sh
+│   └── verify-readonly-bind.sh
 └── references
     ├── current-features.md
     ├── local-services.md

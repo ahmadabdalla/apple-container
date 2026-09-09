@@ -53,17 +53,18 @@ Important: use `container image ls`, not `container images ls`.
 
 ## Bind mount check
 
+Use the bundled verifier to check the directory-source and read-only bind
+contracts with an image that is already local and contains `sh`:
+
 ```bash
-container run --rm \
-  --volume "$PWD:/work" \
-  docker.io/library/alpine:latest \
-  sh -eu -c '
-    pwd
-    ls -la /work | sed -n "1,20p"
-  '
+scripts/verify-readonly-bind.sh docker.io/library/alpine:latest
 ```
 
-Expected result: files from the current host directory appear under `/work`.
+The verifier uses a private synthetic fixture rather than the workspace. It
+requires a regular-file bind to be rejected, confirms that a non-root guest can
+read a staged file but cannot modify it through a read-only directory bind, and
+checks that the host SHA-256 digest is unchanged. Cleanup targets only the
+fixture created by that run.
 
 ## Build check
 

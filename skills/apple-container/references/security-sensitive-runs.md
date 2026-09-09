@@ -20,15 +20,19 @@ remain trust boundaries.
 
 ## Minimize the host surface
 
-- Copy each input into a private, run-specific staging directory. Mount only
-  the exact input and required tools as read-only; never expose broad paths such
-  as the workspace root, the user's home directory, credentials, or sockets.
-  A read-only credential mount prevents modification, not reading or
-  exfiltration.
+- For a single-file input, copy only that file into a private, run-specific
+  staging directory, apply restrictive host permissions, mount the directory
+  `readonly`, and remove only that exact staging path from a cleanup trap.
+- Never work around the directory requirement by exposing a broader workspace,
+  home, credential, configuration, or socket directory. `readonly` protects
+  host-input integrity, not confidentiality; independently constrain network
+  egress and exported or writable output because a workload can disclose any
+  value it can read.
 - Expose one dedicated, run-specific output directory as writable. Run as a
-  non-root UID/GID and probe that exact output path before the real workload.
-  VirtioFS ownership translation can vary, so do not assume every arbitrary UID
-  can write and do not solve permission failures with world-writable host paths.
+  non-root UID/GID and probe the staged input and exact output path before the
+  real workload. VirtioFS ownership translation can vary, so do not assume
+  every arbitrary UID can read or write and do not solve permission failures
+  with world-writable host paths.
 - Use a read-only root filesystem and a size-bounded tmpfs for required scratch
   space. Treat everything written by the workload as untrusted.
 
@@ -50,6 +54,13 @@ Adjust limits and add back only capabilities the application demonstrably
 needs. `--no-dns` alone is not network isolation because raw IP traffic remains
 possible. On macOS 15, `--network none` is unavailable; do not describe a
 DNS-only fallback as offline.
+
+Verify directory-only bind handling and read-only enforcement with a synthetic
+input before exposing sensitive data:
+
+```bash
+scripts/verify-readonly-bind.sh LOCAL_IMAGE_TAG
+```
 
 Verify the exact network boundary with the bundled
 [`verify-offline.sh`](../scripts/verify-offline.sh) and a prepared local image
@@ -75,6 +86,11 @@ as proof of containment.
 - A proxy can join separate networks with repeated `--network` flags, but the
   workload still needs an enforced path that reaches only that proxy. Confirm
   this version-sensitive behavior with local help and post-launch probes.
+
+Validation scope: directory-source rejection, read-only enforcement with an
+unchanged host digest, and the controlled-egress flow above were revalidated on
+Apple `container` 1.4.1, Apple Silicon, and macOS 26.6.2. This does not certify
+unrelated commands or future releases.
 
 ## Account for current CLI gaps
 
@@ -129,7 +145,11 @@ local image identity separately and invoke its tag.
 
 - [Apple 1.3.1 technical overview](https://github.com/apple/container/blob/1.3.1/docs/technical-overview.md)
 - [Apple 1.3.1 command reference](https://github.com/apple/container/blob/1.3.1/docs/command-reference.md)
-- [Apple 1.3.1 mounts and volumes](https://github.com/apple/container/blob/1.3.1/docs/volumes.md)
+- [Apple 1.3.1 bind parser](https://github.com/apple/container/blob/1.3.1/Sources/Services/ContainerAPIService/Client/Parser.swift#L463-L476)
+- [Apple 1.4.1 mounts and volumes](https://github.com/apple/container/blob/1.4.1/docs/volumes.md)
+- [Apple 1.4.1 bind parser](https://github.com/apple/container/blob/1.4.1/Sources/Services/ContainerAPIService/Client/Parser.swift#L463-L476)
+- [Apple 1.4.1 bind parser test](https://github.com/apple/container/blob/1.4.1/Tests/ContainerAPIClientTests/ParserTest.swift#L533-L547)
+- [Repository 1.4.1 validation record](https://github.com/ahmadabdalla/apple-container/issues/6)
 - [Apple local digest lookup issue](https://github.com/apple/container/issues/1962)
 - [Apple host-only egress issue](https://github.com/apple/container/issues/2062)
 - [Proposed host-only gateway fix](https://github.com/apple/container/pull/2072)
